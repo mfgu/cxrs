@@ -2432,7 +2432,8 @@ define xrsrsp(rfn, w, a, nb) {
 define fit_peaks(s, flines, frsp, oflines, ofrsp, xr) {
   variable i, m;
 
-  set_fit_method("marquardt;max_loops=1000;tol=1E-8;delta=1E-10");
+  %set_fit_method("marquardt;max_loops=1000;tol=1E-8;delta=1E-10");
+  set_fit_method("mpfit");
   set_fit_statistic("chisqr");
 
   delete_data(all_data);
@@ -2663,9 +2664,9 @@ define fit_kspec(ofn, s, a, uv1, uv2, rfn, maxiter) {
   afn = ofn + ".lno";
   x = @uv;
   y = @ue;
-  set_fit_method("marquardt;max_loops=1000;tol=1e-8;delta=1E-10");
+  %set_fit_method("marquardt;max_loops=1000;tol=1e-8;delta=1E-10");
   set_fit_statistic("chisqr;sigma=data");
-  %set_fit_method("marquardt");
+  set_fit_method("mpfit");
   %set_fit_statistic("chisqr");
   if (vsp == 0) {
     (c, t) = array_fit(x, y/x, NULL, [0.0, 0.0], NULL, NULL, &dpoly);
@@ -2719,7 +2720,8 @@ define fit_kspec(ofn, s, a, uv1, uv2, rfn, maxiter) {
     color(1);
     hplot(s);
     read_lines(lfn, 0, 0);
-    set_fit_method("marquardt;max_loops=100;tol=1e-4;delta=1E-6");
+    %set_fit_method("marquardt;max_loops=100;tol=1e-4;delta=1E-6");
+    set_fit_method("mpfit");
     set_fit_statistic("chisqr;sigma=data");
     _spec.abund[*] = 1.0;
     if (ksp) {
@@ -2833,7 +2835,8 @@ define fit_kspec(ofn, s, a, uv1, uv2, rfn, maxiter) {
 	r[5] = @b;
 	b = b/max(b);
       }
-      set_fit_method("marquardt;max_loops=1000;tol=1e-8;delta=1E-10");
+      %set_fit_method("marquardt;max_loops=1000;tol=1e-8;delta=1E-10");
+      set_fit_method("mpfit");
       set_fit_statistic("chisqr;sigma=data");
       (c, t) = array_fit(x, y/x, b,
 			 [0.0, 0.0], NULL, NULL, &dpoly);

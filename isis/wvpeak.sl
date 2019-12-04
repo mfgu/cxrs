@@ -1,3 +1,5 @@
+() = evalfile("ebitutil");
+
 define gderiv(x, n) {
   variable y, y2, p;
 
