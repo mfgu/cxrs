@@ -1517,7 +1517,7 @@ define read_lines(fn, conv, wlam) {
   buf = fgetslines(f);
   () = fclose(f);
   nb = length(buf);
-  lines = Double_Type[5,nb];
+  lines = Double_Type[7,nb];
   ion = Integer_Type[nb];
   ilines = Integer_Type[7,nb];
   for (i = 0; i < length(buf); i++) {
@@ -1653,13 +1653,14 @@ define write_lines(fn, m) {
       }
       if (m < 2) {
 	() = fprintf(f, 
-		     "%5d %2d %4d %4d %13.7E %10.3E %13.7E %10.3E %10.3E %d %d\n",
+		     "%5d %2d %4d %4d %13.7E %10.3E %13.7E %10.3E %10.3E %d %d %10.3E %10.3E\n",
 		     _spec.ilines[k][4,i], _spec.ions[k], 
 		     _spec.ilines[k][2,i], _spec.ilines[k][3,i],
 		     _spec.lines[k][0,i]+_spec.shifts[0,k], 
 		     _spec.lines[k][1,i], 
 		     lam[i], _spec.lines[k][3,i], _spec.lines[k][4,i],
-		     _spec.ilines[k][0,i], _spec.ilines[k][1,i]);
+		     _spec.ilines[k][0,i], _spec.ilines[k][1,i],
+		     _spec.lines[k][5,i], _spec.lines[k][6,i]);
       } else {
 	if (_spec.d2 > 0) {
 	  xi = interpol_points(lam[i], _spec.xi[0,*], _spec.xi[1,*]);
@@ -1674,13 +1675,13 @@ define write_lines(fn, m) {
 	  eff = 1.0;
 	}
 	() = fprintf(f, 
-		     "%5d %2d %4d %4d %13.7E %10.3E %13.7E %10.3E %10.3E %10.3E %10.3E\n",
+		     "%5d %2d %4d %4d %13.7E %10.3E %13.7E %10.3E %10.3E %10.3E %10.3E %10.3E %10.3E\n",
 		     _spec.ilines[k][4,i], _spec.ions[k], 
 		     _spec.ilines[k][2,i], _spec.ilines[k][3,i],
 		     _spec.lines[k][0,i]+_spec.shifts[0,k],
 		     _spec.lines[k][1,i]*_spec.abund[k],
 		     lam[i], _spec.lines[k][3,i], _spec.lines[k][4,i],
-		     xi, eff);
+		     xi, eff, _spec.lines[k][5,i], _spec.lines[k][6,i]);
       }
     }
   }
@@ -1793,6 +1794,56 @@ define mspec_fit(lo, hi, par) {
   }
   y += yt;
   return y;
+}
+
+define mspec_conf() {
+  variable i, j, m, k, plo, phi, ip;
+
+  k = 0;
+  for (i = 0; i < length(_spec.width); i++) {
+    if (_spec.iwidth[i] == 0) {
+      k++;
+    }
+  }  
+  for (i = 0; i < length(_spec.alpha); i++) {
+    if (_spec.ialpha[i] == 0) {
+      k++;
+    }
+  }
+  for (i = 0; i < length(_spec.scale); i++) {
+    if (_spec.iscale[i] == 0) {
+      k++;
+    }
+  }
+  for (i = 0; i < length(_spec.bkgd); i++) {
+    if (_spec.ibkgd[i] == 0) {
+      k++;
+    }
+  }
+  for (i = 0; i < length(_spec.abund); i++) {
+    if (_spec.iabund[i] == 0) {
+      k++;
+    }
+  }
+  for (i = 0; i < length(_spec.ishifts); i++) {
+    if (_spec.ishifts[i] == 0) {
+      k++;
+    }
+  }  
+  for (i = 0; i < length(_spec.lines); i++) {
+    for (j = 0; j < 2; j++) {
+      for (m = 0; m < length(_spec.lines[i][j,*]); m++) {
+	if (_spec.ilines[i][j,m] <= 0) {
+	  k++;
+	  ip = get_par_info(k);
+	  if (ip.freeze == 0 and ip.tie == NULL and ip.fun == NULL) {
+	    (plo,phi) = conf(k);
+	    _spec.lines[i][j+5,m] = (phi-plo)*0.5;
+	  }
+	}
+      }
+    }
+  }
 }
   
 % setup the mspec model function
@@ -2791,8 +2842,10 @@ define fit_kspec(ofn, s, a, uv1, uv2, rfn, maxiter) {
     ys = @xs;
     for (ix = 0; ix < length(xmin); ix++) {
       xnotice(1, xmin[ix], xmax[ix]);
-      set_kconstrains(r, v, sig*2, xmin[ix], xmax[ix], 0, ksp);      
+      set_kconstrains(r, v, sig*2, xmin[ix], xmax[ix], 0, ksp);
       () = fit_counts();
+      %list_par();
+      mspec_conf();
       sm = get_model_counts(1);
       m = (ix mod 7) + 2;
       color(m);
