@@ -1,0 +1,77 @@
+#!/bin/bash
+
+# with one argument, it makes an archive of all the necessary files to
+# run this program. it must be run in my home dir.
+if [ "x$1" == "x-x" ]
+then
+    xfn=$2
+    if [ "x$2" == "x" ]
+    then
+	xfn=cxrs.tar.gz
+    fi
+    tar zcvf $xfn bin/cxrs lib/isis/*.sl lib/isis/klines/*.ln lib/isis/xrsdemo/*[^~] lib/python/*.py
+    exit
+fi
+
+if [ "x$1" == "x-h" ]
+then
+    cat <<EOF
+XRS Calbiration Program.
+Usage:        cxrs [-x [archive]] [-h] [evtlist]
+-x [archive]  make an archive of this program, archive is the output file.
+-h            print this help message.
+evtlist       the event list file for cxrs
+EOF
+    exit
+fi
+
+# this script sets up the isis eviron to run the Python user interface
+# of XRS calibration. The first line is the isis setup procedure you
+# normally run in the xterm. The last line runs the cxrs.py script.
+# here the script is assumed to be in ${HOME}/lib/python, where my other
+# python scripts reside. cxrs.py needs the textio.py module in that dir
+# as well. In order for Python to find that module, you must set the 
+# PYTHONPATH environment variable to ${HOME}/lib/python, which is done 
+# in the second line.
+
+# Therefore, you need this file in you executable path.
+# all the isis scripts in your usual ${HOME}/lib/isis directory.
+# the cxrs.py and textio.py in your ${HOME}/lib/python
+# modify the line to setup isis environ appropriately on your machine.
+
+# once these are setup, and this script is executable. launch the program
+# by typing in the xterm: cxrs &
+
+# Once you exported the XRS event files from Igor, create a file called
+# evtlist.txt (by default) in the same dir. Different file names may be used, 
+# and that file may be chosen from the graphical interface. It should contain 
+# the following columns:
+# filename      nhists  phase0  phase1  flag  general_filters
+# where filename is the event file name, nhists is the number of 
+# histograms per event file. phase0 and phase1 are the the ebit phase 
+# limits used to select data. set them to 0.0 if you want include all pases.
+# flag is a bit mask to filter on the flags. the 1 bits in flag are the
+# bits in Flags you don't care. so if flag=3, then all events with Flag<=3
+# are selected. general_filters are isis statements used to filter the events.
+# you can specify, e.g., (UTime < 32405021.0 and EbitPhase > 0.7) to select
+# events with these conditions met. One may also use UTime ? Volts, e.g., so
+# that UTime VS. Volts is plotted in a window and a rectangular region maybe 
+# selected for filtering. Lines in this text file may be continued by escaping
+# the line ending with '\'.
+
+# the evtlist file may conain comments starting with #. All lines do not start 
+# with # must be the entries for event files.
+# the evtlist file may also contain lines start with #Pixel, which give the 
+# pixels that should be included as comma separated lists.
+# it may also contain lines start with #Param, which give the default values to
+# various parameters, such as VBin, VMin, VMax, etc. "Param" after the "#" 
+# correspond to one of these parameter names. 
+# Note that there should be no space between # and the parameter names. and
+# all texts after #Param are assumed to be the parameter value, no extra texts 
+# should be present on the line.
+
+# make sure isis and python module paths are setup properly
+
+python ${HOME}/lib/python/cxrs.py $1
+
+
