@@ -2717,7 +2717,7 @@ define fit_kspec(ofn, s, a, uv1, uv2, rfn, maxiter) {
   y = @ue;
   %set_fit_method("marquardt;max_loops=1000;tol=1e-8;delta=1E-10");
   set_fit_statistic("chisqr;sigma=data");
-  set_fit_method("mpfit");
+  set_fit_method("mpfit;maxiter=5000");
   %set_fit_statistic("chisqr");
   if (vsp == 0) {
     (c, t) = array_fit(x, y/x, NULL, [0.0, 0.0], NULL, NULL, &dpoly);
@@ -2754,8 +2754,8 @@ define fit_kspec(ofn, s, a, uv1, uv2, rfn, maxiter) {
     }
     () = fclose(f);
 
-    x0 = min(v) - sig*10;
-    x1 = max(v) + sig*10;
+    x0 = min(v) - sig*5;
+    x1 = max(v) + sig*5;
     if (ksp) {
       m = where(r[0] == 2);
       if (length(m) > 0) {
@@ -2766,13 +2766,13 @@ define fit_kspec(ofn, s, a, uv1, uv2, rfn, maxiter) {
     limits;
     xrange(x0, x1);
     w = where(s.bin_lo > x0 and s.bin_hi < x1);
-    ymax = max(s.value);
+    ymax = max(s.value[w]);
     yrange(-ymax*0.1, ymax*1.2);
     color(1);
     hplot(s);
     read_lines(lfn, 0, 0);
     %set_fit_method("marquardt;max_loops=100;tol=1e-4;delta=1E-6");
-    set_fit_method("mpfit");
+    set_fit_method("mpfit;maxiter=5000");
     set_fit_statistic("chisqr;sigma=data");
     _spec.abund[*] = 1.0;
     if (ksp) {
