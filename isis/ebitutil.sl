@@ -1837,7 +1837,7 @@ define mspec_conf() {
 	  k++;
 	  ip = get_par_info(k);
 	  if (ip.freeze == 0 and ip.tie == NULL and ip.fun == NULL) {
-	    (plo,phi) = conf(k);
+	    (plo,phi) = conf(k, 0);
 	    _spec.lines[i][j+5,m] = (phi-plo)*0.5;
 	  }
 	}

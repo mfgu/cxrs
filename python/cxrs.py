@@ -619,7 +619,7 @@ class CXRS:
         if version_info.major == 2:
             w = 5
         else:
-            w = 6
+            w = 5
         Button(f, text='Reset', width=w, command=self.reset0).pack(side=LEFT)
         Button(f, text='MkHist', width=w, command=self.mkhist).pack(side=LEFT)
         Button(f, text='Calib', width=w, command=self.calib).pack(side=LEFT)

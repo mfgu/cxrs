@@ -49,6 +49,7 @@ define invcalib(x, c) {
 define applycalib(ipx, sfn, cfn) {
   variable r, c, i, np, p, w, nr, s0, x, xi, xj, j;
   variable k, v, nx, x0, x1, ck, i0, i1, dx;
+
   c = rcols(cfn, [0,1,2,3,4,5,6], ["F","F","I","I","F","F","F"], 
 	    '#', 0, -1, 1);
   np = length(ipx);
@@ -725,7 +726,7 @@ define calib1d(sr, ipx, ds, dr, xr, pr, xri, ss, ctr) {
   }
   idr = where(ds == dr)[0];
   vmessage("process refd %s", dr);
-  xrscalib(sr, ipx, dr+fs, dr+"/calibrd", xr, pr, &rhista, xri, ss, ctr, 0);
+  xrscalib(sr, ipx, dr+fs, dr+"/calibrd", [xr[0],xr[-1]], pr, &rhista, xri, ss, ctr, 0);
   for (i = 0; i < nd; i++) {
     d = ds[i];
     vmessage("apply calib %s", d);
@@ -864,8 +865,25 @@ define tabvolts(ofn, fn, dlist, ipx, cdir, cref, dr) {
   variable r, s, i, j, k, m, vfn, vf, d0, dt, d, idr, tdr, wr, u, q, t;
   variable c0, c1, c2, cx, w, nr, cfn, v0, v1, v2, v3, nw, wd, nwd, ip, np, nd;
   variable nc, nf, idc, ddc;
-  
-  r = rcols(fn, [0,1,2,3,4], ["A","A","F","F","F"], '#', 0, -1, 1);
+
+  t = is_substr(fn, ":");
+  if (t > 0) {
+    t = eval("["+fn+"]");
+    m = length(t);
+    r = Array_Type[5];
+    r[0] = String_Type[m];
+    r[1] = String_Type[m];
+    r[2] = t;
+    r[3] = @t;
+    r[4] = @t;
+    for (i = 0; i < m; i++) {
+      r[0][i] = cdir[0];
+      r[1][i] = sprintf("%d", i);
+      r[4][i] = 1.0;
+    }
+  } else {    
+    r = rcols(fn, [0,1,2,3,4], ["A","A","F","F","F"], '#', 0, -1, 1);
+  }
   s = array_sort(r[0]);
   for (i = 0; i < length(r); i++) {
     r[i] = r[i][s];
@@ -955,9 +973,6 @@ define tabvolts(ofn, fn, dlist, ipx, cdir, cref, dr) {
 	v3 = invcalib(v2, [c2[4][t], c2[5][t], c2[6][t]]);
 	() = fprintf(vf, "%2d %5s %2d %6s %6s %13.7E %13.7E %12.5E %13.7E\n",
 		     i, dt, ip, r[0][j], r[1][j], r[2][j], v3, r[4][j], v0);
-	if (j == 3 and ip == 3 and i == 0) {
-	  print([v0,v1,v2,v3]);
-	}
       }
     }
   }
