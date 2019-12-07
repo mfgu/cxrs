@@ -46,57 +46,75 @@ define invcalib(x, c) {
   return y;
 }
 
-define applycalib(ipx, sfn, cfn) {
-  variable r, c, i, np, p, w, nr, s0, x, xi, xj, j;
+define apply1calib(pac) {
+  variable c0, c1, c3, c4, c5, c6;
+  variable i, np, p, w, nr, s0, x, xi, xj, j;
   variable k, v, nx, x0, x1, ck, i0, i1, dx;
 
+  p = pac[0];
+  x = pac[2];
+  xi = pac[3];
+  c0 = pac[4];
+  c1 = pac[5];
+  c3 = pac[6];
+  c4 = pac[7];
+  c5 = pac[8];
+  c6 = pac[9];
+  w = where(c3 == p);
+  nr = length(w);
+  s0 = rhista(pac[1]);
+  nx = length(s0.bin_hi);
+  for (j = 0; j < nr; j++) {
+    k = w[j];
+    ck = [c4[k], c5[k], c6[k]];
+    x0 = c0[k];
+    x1 = c1[k];
+    v = where(x >= x0 and x < x1);
+    if (length(v) > 0) {
+      xi[v] = invcalib(x[v], ck);
+    }
+  }
+  xj = x/xi;
+  x0 = interpol(s0.bin_lo, xi, xj)*s0.bin_lo;
+  x1 = interpol(s0.bin_hi, xi, xj)*s0.bin_hi;
+  dx = x1-x0;
+  w = where(dx > 0);
+  i0 = w[0];
+  if (i0 > 0) {
+    w = [0:i0-1];
+    dx[w] = 0;
+    x0[w] = s0.bin_lo*x0[i0]/s0.bin_lo[i0];
+    x1[w] = s0.bin_hi*x1[i0]/s0.bin_hi[i1];
+  }
+  w = where(dx < 0);
+  if (length(w) > 0) {
+    i1 = w[0];
+    w = [i1:nx-1];
+    x0[w] = s0.bin_lo*x0[i1-1]/s0.bin_lo[i1-1];
+    x1[w] = s0.bin_hi*x1[i1-1]/s0.bin_hi[i1-1];
+  } else {
+    i1 = nx;
+  }
+  s0.value = agrebin(s0.bin_lo, s0.bin_hi, x0, x1,
+		     s0.value, NULL);
+  s0.err = sqrt(s0.value);
+  whista(pac[1]+".csp", s0);
+}
+
+define applycalib(ipx, sfn, cfn) {
+  variable c, np, x, i, xi, pac;
+  
   c = rcols(cfn, [0,1,2,3,4,5,6], ["F","F","I","I","F","F","F"], 
 	    '#', 0, -1, 1);
   np = length(ipx);
   x = [min(c[0]):max(c[1]):0.005];
-  xi = @x;
+
+  pac = List_Type[np];
   for (i = 0; i < np; i++) {
-    p = ipx[i];    
-    w = where(c[3] == p);
-    nr = length(w);
-    s0 = rhista(sfn[i]);
-    nx = length(s0.bin_hi);
-    for (j = 0; j < nr; j++) {
-      k = w[j];
-      ck = [c[4][k], c[5][k], c[6][k]];
-      x0 = c[0][k];
-      x1 = c[1][k];
-      v = where(x >= x0 and x < x1);
-      if (length(v) > 0) {
-	xi[v] = invcalib(x[v], ck);
-      }
-    }
-    xj = x/xi;
-    x0 = interpol(s0.bin_lo, xi, xj)*s0.bin_lo;
-    x1 = interpol(s0.bin_hi, xi, xj)*s0.bin_hi;
-    dx = x1-x0;
-    w = where(dx > 0);
-    i0 = w[0];
-    if (i0 > 0) {
-      w = [0:i0-1];
-      dx[w] = 0;
-      x0[w] = s0.bin_lo*x0[i0]/s0.bin_lo[i0];
-      x1[w] = s0.bin_hi*x1[i0]/s0.bin_hi[i1];
-    }
-    w = where(dx < 0);
-    if (length(w) > 0) {
-      i1 = w[0];
-      w = [i1:nx-1];
-      x0[w] = s0.bin_lo*x0[i1-1]/s0.bin_lo[i1-1];
-      x1[w] = s0.bin_hi*x1[i1-1]/s0.bin_hi[i1-1];
-    } else {
-      i1 = nx;
-    }
-    s0.value = agrebin(s0.bin_lo, s0.bin_hi, x0, x1,
-		       s0.value, NULL);
-    s0.err = sqrt(s0.value);
-    whista(sfn[i]+".csp", s0);
+    xi = @x;
+    pac[i] = {ipx[i], sfn[i], x, xi, c[0], c[1], c[3], c[4], c[5], c[6]};
   }
+  parallel_map(Void_Type, &apply1calib, List_Type, pac);
 }
 
 define chpar(a0, s) {
@@ -498,6 +516,26 @@ define xrspoly(ofn, cfn, rfn, np) {
   return 0;
 }
 
+define align1pix(p) {
+  variable a, x0, x1, s0, s1, lo, hi;
+
+  if (p[0] == "") {     
+    return;
+  }
+  vmessage(p[0]);
+  s0 = p[1];
+  s1 = p[2];
+  () = fflush(stdout);
+  (a,x0,x1) = align_pix(s0, s1, p[3], p[4], p[5], p[6], p[7]);
+  () = fflush(stdout);
+  lo = interpol(s1.bin_lo, x0/x1, x1)*s1.bin_lo;
+  hi = interpol(s1.bin_hi, x0/x1, x1)*s1.bin_hi;
+  s1.value = agrebin(s0.bin_lo, s0.bin_hi, lo, hi, s1.value, NULL);
+  s1.bin_lo = @(s0.bin_lo);
+  s1.bin_hi = @(s0.bin_hi);
+  return {a,s1};
+}
+
 % xrscalib
 % sr is the histogram of the reference pix. may be an integer which
 %    picks out the sr-th spectrum in fspecs as the reference.
@@ -522,7 +560,7 @@ define xrspoly(ofn, cfn, rfn, np) {
 % "pref.tsp" is the histogram of the summed spectrum.
 define xrscalib(sr, ipx, fspecs, pref, fxr, pr, rdsp_fun, 
 		fxri, ss, ctr, xd) {
-  variable f1, fn, id, ym, yd, yt, np, q, ip, a, x0, x1, m, lo, hi, s1, i;
+  variable f1, fn, id, ym, yd, yt, np, q, ip, a, m, s1, i;
   variable ip0, nsp, s0, label, specs, xr, j, npo, xri, xr0;
 
   npo = 3;
@@ -581,31 +619,38 @@ define xrscalib(sr, ipx, fspecs, pref, fxr, pr, rdsp_fun,
   xylabel(pr[3], yd*0.3, label);
   q = 1;  
   nsp = length(specs);
+  variable apps = List_Type[nsp];
   for (ip = 0; ip < nsp; ip++) {
     xr = @xr0;
     fn = specs[ip];
     m = stat_file(fn);
-    if (m == NULL) continue;
-    if (ip == ip0) {
+    if (m == NULL) {
+      fn = "";
+    } else if (ip == ip0) {
       whista(fn+".csp", sr);
+      xr = @xr0;
       for (i = 0; i < length(xr)-1; i++) {
 	() = fprintf(f1, "%12.5E %12.5E %2d %2d", xr[i], xr[i+1], ip, ipx[ip]);
 	() = fprintf(f1, " %12.5E %12.5E %12.5E", 0.0, 1.0, 0.0);
 	() = fprintf(f1, " %s\n", fn);
       }
       () = fprintf(f1, "\n");
-      continue;
+      fn = "";
     }
-    vmessage(fn);
-    () = fflush(stdout);
-    s1 = (@rdsp_fun)(fn);
-    (a, x0, x1) = align_pix(sr, s1, xr, xri, ss, ctr, xd);
-    () = fflush(stdout);
-    lo = interpol(s1.bin_lo, x0/x1, x1)*s1.bin_lo;
-    hi = interpol(s1.bin_hi, x0/x1, x1)*s1.bin_hi;
-    s1.value = agrebin(s0.bin_lo, s0.bin_hi, lo, hi, s1.value, NULL);
-    s1.bin_lo = @(s0.bin_lo);
-    s1.bin_hi = @(s0.bin_hi);
+    if (fn != "") {
+      s1 = (@rdsp_fun)(fn);
+    } else {
+      s1 = NULL;
+    }
+    apps[ip] = {fn, sr, s1, xr, xri, ss, ctr, xd};
+  }
+  variable aprs = parallel_map(List_Type, &align1pix, apps);
+  for (ip = 0; ip < nsp; ip++) {
+    if (apps[ip][0] == "") continue;
+    xr = apps[ip][3];
+    fn = apps[ip][0];
+    a = aprs[ip][0];
+    s1 = aprs[ip][1];
     s0.value += s1.value;    
     whista(fn+".csp", s1);
     color(1);
@@ -615,7 +660,7 @@ define xrscalib(sr, ipx, fspecs, pref, fxr, pr, rdsp_fun,
     color(2);
     set_line_width(2);
     charsize(0.8);
-    xylabel(pr[3], yt+yd*0.3, specs[ip]);
+    xylabel(pr[3], yt+yd*0.3, fn);    
     for (i = 0; i < length(xr)-1; i++) {
       () = fprintf(f1, "%12.5E %12.5E %2d %2d", xr[i], xr[i+1], ip, ipx[ip]);
       for (j = 0; j < npo; j++) {
@@ -2520,9 +2565,66 @@ define mergeln(ofn, mfn, lab, cnts) {
   comblines(ofn, mfn+".lno", lab, cnts);
 }
 
+define apply1gain(pag) {
+  variable i, m, ds, sd, st, r, dt, w, t, c, j, s, sfn, lo, hi;
+  variable xlo, xhi, b, np;
+  
+  i = pag[0];
+  m = pag[1];
+  ds = pag[2];
+  r = pag[3];
+  xlo = pag[4];
+  xhi = pag[5];
+  np = pag[6];
+  vmessage("processing %s pix %d %d", ds[i], m, length(xlo));
+  () = fflush(stdout);
+  dt = ds[i][[-5:]];
+  w = where(r[1] == dt and r[2] == m);
+  if (length(w) == 0) {
+    w = where(r[1] == "00t00" and r[2] == m);
+  }
+  if (length(w) == 0) {
+    return;
+  }
+  t = w[0];
+  c = Double_Type[np];
+  for (j = 0; j < np; j++) c[j] = r[5+j][t];
+  w = where(c != 0);
+  if (length(w) == 0) {
+    return;
+  }
+  sfn = sprintf("%s/vh%02d.txt", ds[i], m);
+  if (stat_file(sfn) == NULL) {
+    return;
+  }
+  s = rhista(sfn);
+  w = where(s.bin_lo >= r[3][t] and s.bin_hi <= r[4][t]);      
+  lo = dpoly(s.bin_lo, c)*s.bin_lo;
+  hi = dpoly(s.bin_hi, c)*s.bin_hi;
+
+  if (xlo == NULL) {
+    for (j = w[0]; j >= 0; j--) {
+      if (hi[j] <= lo[j] or lo[j] <= 0) break;
+    }
+    t = j+1;
+    for (j = w[-1]; j < length(lo); j++) {
+      if (hi[j] <= lo[j]) break;
+    }
+    j--;
+    b = mean(hi[w]-lo[w]);
+    xlo = [lo[t]:hi[j]:b];
+    xhi = xlo + b;
+  }
+  s.value = agrebin(xlo, xhi, lo, hi, s.value, w);
+  s.err = sqrt(s.value);
+  s.bin_lo = @xlo;
+  s.bin_hi = @xhi;
+  return {s};
+}
+
 define applygain(pfn, ds, ofn, de, emin, emax, ipx) {
-  variable i, j, m, r, t, b, np, nd, f, w, c, s, st, sd, dt, lo, hi, sfn;
-  variable xlo, xhi, im;
+  variable f, b, r, rc, np, nd, npx, ndp, i, j, k, pag;
+  variable sfn, xlo, xhi, st, sd, s, s1;
   
   f = fopen(pfn, "r");
   if (-1 == fgets(&b, f)) return;
@@ -2537,6 +2639,7 @@ define applygain(pfn, ds, ofn, de, emin, emax, ipx) {
   
   r = rcols(pfn, [0:length(b)-1], f, ' ', 0, -1, 1);
   nd = length(ds);
+  npx = length(ipx);
   st = NULL;
   if (de <= 0.0) {
     xlo = NULL;
@@ -2545,71 +2648,64 @@ define applygain(pfn, ds, ofn, de, emin, emax, ipx) {
     xlo = [emin:emax:de];
     xhi = xlo + de;
   }
+  ndp = nd*npx;
+  k = 0;
+  pag = List_Type[ndp];
+  rc = {};
+  for (i = 0; i < length(r); i++) {
+    list_append(rc, r[i]);
+  }
   for (i = 0; i < nd; i++) {
-    vmessage("processing %s", ds[i]);
-    () = fflush(stdout);
-    dt = ds[i][[-5:]];    
-    sd = NULL;
-    for (im = 0; im < length(ipx); im++) {
-      m = ipx[im];
-      w = where(r[1] == dt and r[2] == m);
-      if (length(w) == 0) {
-	w = where(r[1] == "00t00" and r[2] == m);
-      }
-      if (length(w) == 0) continue;
-      t = w[0];
-      c = Double_Type[np];
-      for (j = 0; j < np; j++) c[j] = r[5+j][t];
-      w = where(c != 0);
-      if (length(w) == 0) continue;      
-      vmessage("Pixel %2d", m);
-      () = fflush(stdout);
-      sfn = sprintf("%s/vh%02d.txt", ds[i], m);
-      if (stat_file(sfn) == NULL) continue;
-      s = rhista(sfn);
-      w = where(s.bin_lo >= r[3][t] and s.bin_hi <= r[4][t]);      
-      lo = dpoly(s.bin_lo, c)*s.bin_lo;
-      hi = dpoly(s.bin_hi, c)*s.bin_hi;
-      if (xlo == NULL) {
-	for (j = w[0]; j >= 0; j--) {
-	  if (hi[j] <= lo[j] or lo[j] <= 0) break;
-	}
-	t = j+1;
-	for (j = w[-1]; j < length(lo); j++) {
-	  if (hi[j] <= lo[j]) break;
-	}
-	j--;
-	b = mean(hi[w]-lo[w]);
-	xlo = [lo[t]:hi[j]:b];
-	xhi = xlo + b;
-      }
-      s.value = agrebin(xlo, xhi, lo, hi, s.value, w);
-      s.err = sqrt(s.value);
-      s.bin_lo = @xlo;
-      s.bin_hi = @xhi;
-      sfn = sprintf("%s/ch%02d.txt", ds[i], m);
-      whista(sfn, s);
-      if (sd == NULL) {
-	sd = collapse(s, 1);
-      } else {
-	sd.value += s.value;
-      }
-    }
-    if (sd != NULL) {
-      sd.err = sqrt(sd.value);
-      sfn = sprintf("%s/ch.tsp", ds[i]);
-      whista(sfn, sd);
-      if (st == NULL) {
-	st = collapse(sd, 1);
-      } else {
-	st.value += sd.value;
-      }
+    for (j = 0; j < npx; j++) {
+      pag[k] = {i,ipx[j],ds,rc,xlo,xhi,np};
+      k++;
     }
   }
-  if (st != NULL) {
-    st.err = sqrt(st.value);
-    whista(ofn, st);
+  s = List_Type[ndp];
+  for (k = 0; k < ndp; k++) {
+    s[k] = apply1gain(pag[k]);
+    if (length(s[k]) > 0) {
+      k++;
+      break;
+    }
   }
+  s1 = s[k-1][0];
+  if (xlo == NULL) {
+    xlo = @s1.bin_lo;
+    xhi = @s1.bin_hi;
+    for (i = k; i < ndp; i++) {
+      pag[i][4] = xlo;
+      pag[i][5] = xhi;
+    }
+  }
+  if (k < ndp) {
+    s1 = parallel_map(List_Type, &apply1gain, pag[[k:ndp-1]]);
+    for (i = k; i < ndp; i++) {
+      s[i] = s1[i-k];
+    }
+  }
+  s1 = s[k-1][0];
+  st = collapse(s1, 1);
+  sd = collapse(s1, 1);
+  st.value = 0.0;
+  k = 0;
+  for (i = 0; i < nd; i++) {
+    sd.value = 0.0;
+    for (j = 0; j < npx; j++) {
+      if (length(s[k]) == 0) continue;
+      s1 = s[k][0];
+      sfn = sprintf("%s/ch%02d.txt", ds[i], ipx[j]);      
+      whista(sfn, s1);
+      sd.value = sd.value + s1.value;
+      k++;
+    }
+    st.value = st.value + sd.value;
+    sd.err = sqrt(sd.value);
+    sfn = sprintf("%s/ch.tsp", ds[i]);
+    whista(sfn, sd);
+  }
+  st.err = sqrt(st.value);
+  whista(ofn, st);
 }
 
 define cevent(ief, listf, pfn, ef) {
@@ -2652,8 +2748,7 @@ define cevent(ief, listf, pfn, ef) {
       w = where(filter_args.r[ip] == i);
       if (length(w) == 0) continue;
       filter_args.volts[w] = dpoly(filter_args.volts[w], c)*filter_args.volts[w];
-    }
-    
+    }    
     wrtevts(evtf+ef, 0);
   }
 }
