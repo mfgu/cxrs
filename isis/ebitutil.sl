@@ -1837,8 +1837,12 @@ define mspec_conf() {
 	  k++;
 	  ip = get_par_info(k);
 	  if (ip.freeze == 0 and ip.tie == NULL and ip.fun == NULL) {
-	    (plo,phi) = conf(k, 0);
-	    _spec.lines[i][j+5,m] = (phi-plo)*0.5;
+	    try {
+	      (plo,phi) = conf(k, 0);
+	      _spec.lines[i][j+5,m] = (phi-plo)*0.5;
+	    } finally {
+	      vmessage("conf error: %d %d %d", i, j, m);
+	    }
 	  }
 	}
       }
@@ -2545,6 +2549,7 @@ define set_kconstrains(r0, v0, a, xmin, xmax, ia, ksp) {
       }
       if (yp and yp0) {
 	yc = _spec.lines[2][1, i] / _spec.lines[2][1, w];
+	set_par(yp, 0, 0, -1e-30, 1e31);
 	set_par_fun(yp, sprintf("_par(%d)*(%11.4E)", yp0, yc));
       }
     }
