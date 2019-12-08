@@ -831,6 +831,25 @@ define addspec(pref, ds, ipx, cdir, cref, dr) {
   }
   nd = length(ds);
   np = length(ipx);
+  i = is_substr(cdir[0],"%");
+  if (i > 0) {
+    s = NULL;
+    for (i = 0; i < nd; i++) {
+      for (j = 0; j < np; j++) {
+	sfn = sprintf(ds[i]+"/"+cdir[0], ipx[j]);
+	vmessage(sfn);
+	if (s == NULL) {
+	  s = rhista(sfn);
+	} else {
+	  s0 = rhista(sfn);
+	  s.value += s0.value;
+	}
+      }
+    }
+    s.err = sqrt(s.value);
+    whista(pref+".tsp", s);
+    return;
+  }
   nc = length(cdir);
   nr = length(cref);
   idc = Array_Type[nc];
