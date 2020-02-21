@@ -975,6 +975,7 @@ define tabvolts(ofn, fn, dlist, ipx, cdir, cref, dr) {
   vf = fopen(vfn, "w");
   idr = where(dlist == dr)[0];  
   d0 = "";
+  
   for (j = 0; j < nr; j++) {
     if (r[0][j] != d0) {
       d0 = r[0][j];
@@ -1017,7 +1018,8 @@ define tabvolts(ofn, fn, dlist, ipx, cdir, cref, dr) {
       if (nw == 0) continue;
       k = w[0];
       v1 = invcalib(v0, [c0[4][k], c0[5][k], c0[6][k]]);
-      if (c2 == NULL) {	
+      if (c2 == NULL) {
+	dt = dlist[idr][[-5:]];
 	() = fprintf(vf, "%2d %5s %2d %6s %6s %13.7E %13.7E %12.5E %13.7E\n",
 		     0, dt, ip, r[0][j], r[1][j], r[2][j], v1, r[4][j], v0);
 	continue;
